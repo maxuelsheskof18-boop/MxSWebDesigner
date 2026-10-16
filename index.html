@@ -186,9 +186,12 @@
 
     <!-- 2. Tabela de oportunidades -->
     <section class="mt-6 rounded-2xl border border-slate-700/70 bg-slate-800/40 overflow-hidden">
-      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-700/70">
+      <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4 border-b border-slate-700/70">
         <h2 class="font-bold">Oportunidades</h2>
-        <span id="legendaBusca" class="text-xs text-slate-400 font-mono truncate"></span>
+        <div class="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          <span id="legendaBusca" class="text-xs text-slate-400 font-mono"></span>
+          <button id="btnAtualizar" type="button" class="hidden text-xs font-semibold text-cyan-300 hover:text-cyan-200 hover:underline">Buscar de novo no Google</button>
+        </div>
       </div>
       <div class="md:overflow-x-auto">
         <table class="w-full text-sm block md:table">
@@ -664,7 +667,7 @@
 
     // ===================== WHATSAPP CONECTADO (Evolution API v2) =====================
     // Com a Evolution conectada, o painel manda texto e PDF direto, sem abrir o WhatsApp.
-    const CHAVE_EVO = 'mxs-evolution', CHAVE_CONTA = 'mxs-envios-dia';
+    const CHAVE_EVO = 'mxs-evolution', CHAVE_CONTA = 'mxs-envios-dia', CHAVE_ENVIADOS = 'mxs-enviados';
 
     function lerLocal(chave, padrao) {
       try { return JSON.parse(localStorage.getItem(chave)) ?? padrao; } catch { return padrao; }
@@ -774,6 +777,7 @@
       }
       contarEnvio();
       lead.enviado = true;
+      gravarLocal(CHAVE_ENVIADOS, { ...lerLocal(CHAVE_ENVIADOS, {}), [soDigitos(lead.telefone)]: new Date().toISOString() });
       renderizar(leadsAtuais);
       return true;
     }
@@ -857,8 +861,8 @@
         </tr>`).join('');
     }
 
-    async function buscarOportunidades(ev) {
-      ev.preventDefault();
+    async function buscarOportunidades(ev, atualizar = false) {
+      ev?.preventDefault();
       const nicho = $('nicho').value.trim();
       const regiao = $('regiao').value.trim();
       const erro = $('erroBusca');
@@ -871,18 +875,22 @@
       erro.classList.add('hidden');
       carregando(true);
       try {
-        const { todas, real } = await buscarEmpresas(nicho, regiao);
+        const { todas, real, guardadaEm } = await buscarEmpresas(nicho, regiao, atualizar);
+        const enviados = lerLocal(CHAVE_ENVIADOS, {});
         const semSiteLista = todas.filter(semSite);
         const semTelefone = semSiteLista.filter(e => !soDigitos(e.telefone)).length;
         leadsAtuais = semSiteLista
           .filter(e => soDigitos(e.telefone))
-          .map(e => ({ ...e, nicho, rede: e.website ? redeSocialDe(e.website) : null }));
+          .map(e => ({ ...e, nicho, rede: e.website ? redeSocialDe(e.website) : null, enviado: Boolean(enviados[soDigitos(e.telefone)]) }));
         $('kpiTotal').textContent = todas.length;
         $('kpiComSite').textContent = todas.length - semSiteLista.length;
         $('kpiOport').textContent = leadsAtuais.length;
         $('resumo').classList.remove('hidden');
-        $('legendaBusca').textContent = `${real ? 'Google Maps' : 'Simulação'} · ${nicho} · ${regiao}` +
+        const origem = !real ? 'Simulação'
+          : guardadaEm ? `Guardada em ${new Date(guardadaEm).toLocaleDateString('pt-BR')} (sem gastar consulta)` : 'Google Maps';
+        $('legendaBusca').textContent = `${origem} · ${nicho} · ${regiao}` +
           (semTelefone ? ` · ${semTelefone} sem telefone ${semTelefone > 1 ? 'ficaram' : 'ficou'} de fora` : '');
+        $('btnAtualizar').classList.toggle('hidden', !guardadaEm);
         renderizar(leadsAtuais);
       } catch (e) {
         erro.textContent = e.message;
@@ -894,17 +902,21 @@
 
     // Com a chave do Google salva no WhatsApp local, busca de verdade; sem ela, simulação.
     // Se a busca real falhar, mostra o erro — nunca troca por dados inventados.
-    async function buscarEmpresas(nicho, regiao) {
+    // A mesma busca em até 30 dias volta guardada do WhatsApp local, sem gastar consulta.
+    async function buscarEmpresas(nicho, regiao, atualizar) {
       if (googleInfo?.configurada) {
-        const d = await evoChamar('POST', '/mxs/buscar', { nicho, regiao });
+        const d = await evoChamar('POST', '/mxs/buscar', { nicho, regiao, atualizar });
         googleInfo = { configurada: d.configurada, uso: d.uso, limite: d.limite };
         pintarModoBusca();
-        return { todas: d.lugares || [], real: true };
+        return { todas: d.lugares || [], real: true, guardadaEm: d.guardadaEm };
       }
       return { todas: await simularBuscaGooglePlaces(nicho, regiao), real: false };
     }
 
-    $('formBusca').addEventListener('submit', buscarOportunidades);
+    $('formBusca').addEventListener('submit', ev => buscarOportunidades(ev));
+    $('btnAtualizar').addEventListener('click', () => {
+      if (confirm('Buscar de novo no Google? Isso usa até 3 consultas do mês.')) buscarOportunidades(null, true);
+    });
 
     $('corpoTabela').addEventListener('click', async ev => {
       const btn = ev.target.closest('button[data-acao]');
