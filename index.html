@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="pt-BR" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Máquina de Leads MXS</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+          colors: { neon: { blue: '#22d3ee', purple: '#a855f7' } },
+          boxShadow: {
+            neon: '0 0 0 1px rgba(34,211,238,.35), 0 0 24px -4px rgba(34,211,238,.45)',
+            roxo: '0 0 0 1px rgba(168,85,247,.35), 0 0 28px -6px rgba(168,85,247,.55)'
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { background-color: #0f172a; }
+    .grade {
+      background-image:
+        linear-gradient(rgba(148,163,184,.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148,163,184,.06) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .texto-neon {
+      background: linear-gradient(90deg, #22d3ee, #a855f7);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .linha-entra { animation: entra .35s ease-out both; }
+    @keyframes entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* ===== Slides da prévia em PDF =====
+       São fotografados pelo html2canvas: nada de blur nem texto em gradiente aqui. */
+    #palco { position: fixed; left: -20000px; top: 0; }
+    .sl { width: 1280px; height: 720px; position: relative; overflow: hidden; font-family: Inter, system-ui, sans-serif; background: #0b1120; color: #e2e8f0; }
+    .sl *, .sl *::before, .sl *::after { box-sizing: border-box; }
+    .sl-luz { position: absolute; width: 760px; height: 760px; border-radius: 50%; background: radial-gradient(circle, var(--luz) 0%, transparent 65%); }
+    .sl-tag { display: inline-flex; align-items: center; height: 36px; line-height: 1; font-size: 13px; font-weight: 800; letter-spacing: .18em; color: var(--p); border: 1.5px solid var(--p); padding: 0 16px; border-radius: 999px; }
+    .sl-h1 { font-size: 58px; line-height: 1.06; font-weight: 800; letter-spacing: -.02em; margin: 26px 0 22px; color: #fff; }
+    .sl-h1 span { color: var(--p); }
+    .sl-h2 { font-size: 34px; line-height: 1.15; font-weight: 800; letter-spacing: -.01em; margin: 16px 0 0; color: #fff; }
+    .sl-h2 span { color: var(--p); }
+    .sl-lead { font-size: 20px; line-height: 1.5; color: #94a3b8; margin: 0 0 30px; max-width: 600px; }
+    .sl-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+    .sl-chips span { font-size: 15px; font-weight: 600; color: #cbd5e1; background: #1e293b; border: 1px solid #334155; padding: 9px 14px; border-radius: 10px; }
+    .sl-rodape { position: absolute; left: 72px; bottom: 36px; display: flex; align-items: center; gap: 12px; font-size: 15px; color: #94a3b8; }
+    .sl-logo { width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #22d3ee, #a855f7); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; color: #0f172a; }
+    .sl-rodape b { color: #e2e8f0; }
+    .sl-beneficios { position: absolute; left: 72px; right: 72px; top: 178px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+    .sl-ben { background: #111a2e; border: 1px solid #23304a; border-radius: 18px; padding: 20px 24px 22px; min-height: 150px; }
+    .sl-ben .e { display: block; font-size: 30px; line-height: 1.1; }
+    .sl-ben b { display: block; font-size: 19px; margin: 14px 0 6px; color: #fff; }
+    .sl-ben small { display: block; font-size: 15px; line-height: 1.45; color: #94a3b8; }
+    .sl-cta { position: absolute; left: 72px; right: 72px; bottom: 44px; height: 112px; border-radius: 20px; padding: 0 32px; display: flex; align-items: center; gap: 28px; background: linear-gradient(90deg, var(--p), var(--p2)); color: var(--btx); }
+    .sl-cta p { margin: 0; font-size: 21px; line-height: 1.35; font-weight: 700; flex: 1; }
+    .sl-cta .ass { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 700; white-space: nowrap; background: rgba(15,23,42,.88); color: #e2e8f0; padding: 12px 16px; border-radius: 14px; }
+
+    /* Navegador e celular */
+    .nav-frame { position: absolute; width: 830px; height: 490px; border-radius: 16px; overflow: hidden; background: var(--bg); box-shadow: 0 40px 80px -20px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.1); display: flex; flex-direction: column; }
+    .nav-barra { height: 38px; flex: none; background: #1e293b; display: flex; align-items: center; gap: 7px; padding: 0 14px; }
+    .nav-barra i { width: 11px; height: 11px; border-radius: 50%; }
+    .nav-url { margin-left: 14px; flex: 1; height: 24px; border-radius: 7px; background: #0f172a; color: #94a3b8; font-size: 12px; display: flex; align-items: center; padding: 0 12px; }
+    .nav-corpo { flex: 1; overflow: hidden; }
+    .cel { position: absolute; width: 270px; height: 550px; border-radius: 42px; background: #020617; padding: 11px; box-shadow: 0 40px 80px -20px rgba(0,0,0,.8), 0 0 0 2px #334155; }
+    .cel-tela { width: 100%; height: 100%; border-radius: 32px; overflow: hidden; position: relative; background: var(--bg); }
+    .cel-notch { position: absolute; top: 0; left: 50%; margin-left: -46px; width: 92px; height: 22px; background: #020617; border-radius: 0 0 14px 14px; z-index: 2; }
+
+    /* O site de exemplo dentro do navegador/celular */
+    .ws { background: var(--bg); color: var(--tx); width: 100%; height: 100%; overflow: hidden; font-family: Inter, system-ui, sans-serif; }
+    .ws-nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 28px; border-bottom: 1px solid var(--ln); }
+    .ws-marca { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 15px; min-width: 0; }
+    .ws-marca .ico { width: 32px; height: 32px; flex: none; border-radius: 9px; background: var(--p); display: flex; align-items: center; justify-content: center; font-size: 17px; line-height: 1; }
+    .ws-marca .nm { white-space: nowrap; line-height: 1.3; }
+    .ws-links { display: flex; gap: 20px; font-size: 13px; color: var(--mu); white-space: nowrap; }
+    .ws-menu { display: none; font-size: 20px; color: var(--tx); }
+    .ws-btn { background: var(--p); color: var(--btx); font-weight: 700; font-size: 13px; padding: 10px 16px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
+    .ws-btn.zap { background: #16a34a; color: #fff; }
+    .ws-hero { display: flex; align-items: center; gap: 28px; padding: 24px 28px 20px; background: linear-gradient(135deg, var(--soft) 0%, transparent 75%); }
+    .ws-hero .txt { flex: 1; min-width: 0; }
+    .ws-hero h2 { font-size: 34px; line-height: 1.08; font-weight: 800; letter-spacing: -.02em; margin: 10px 0; }
+    .ws-hero h2 em { font-style: normal; color: var(--p); }
+    .ws-hero p { font-size: 14px; line-height: 1.5; color: var(--mu); margin: 0 0 18px; }
+    .ws-selo { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--p); background: var(--soft); padding: 6px 10px; border-radius: 999px; }
+    .ws-botoes { display: flex; gap: 10px; }
+    .ws-arte { flex: none; width: 196px; height: 196px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, var(--p2), var(--p)); display: flex; align-items: center; justify-content: center; font-size: 96px; line-height: 1; position: relative; box-shadow: 0 22px 50px -14px var(--p); }
+    .ws-arte .emo { display: block; width: 58%; height: auto; }
+    .ws-marca .ico img { display: block; width: 68%; height: auto; }
+    .ws-nota { position: absolute; bottom: 0; left: -34px; background: #fff; color: #0f172a; border-radius: 12px; padding: 9px 12px; font-size: 12px; font-weight: 700; white-space: nowrap; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+    .ws-nota span { color: #f59e0b; }
+    .ws-cards { display: flex; gap: 14px; padding: 0 28px 16px; }
+    .ws-card { flex: 1; background: var(--cd); border: 1px solid var(--ln); border-radius: 14px; padding: 13px 14px; }
+    .ws-card .e { display: block; font-size: 20px; line-height: 1.1; }
+    .ws-card b { display: block; font-size: 14px; margin: 8px 0 3px; }
+    .ws-card small { display: block; font-size: 12px; line-height: 1.4; color: var(--mu); }
+    .ws-fim { display: flex; justify-content: space-between; gap: 12px; padding: 10px 28px; font-size: 12px; color: var(--mu); border-top: 1px solid var(--ln); white-space: nowrap; }
+    /* versão celular */
+    .ws.m .ws-nav { padding: 30px 16px 10px; }
+    .ws.m .ws-marca { font-size: 13px; }
+    .ws.m .ws-marca .ico { width: 28px; height: 28px; font-size: 15px; }
+    .ws.m .ws-links, .ws.m .ws-nav .ws-btn { display: none; }
+    .ws.m .ws-menu { display: block; }
+    .ws.m .ws-hero { flex-direction: column-reverse; text-align: center; gap: 14px; padding: 18px 16px 14px; }
+    .ws.m .ws-arte { width: 116px; height: 116px; font-size: 58px; }
+    .ws.m .ws-nota { display: none; }
+    .ws.m .ws-hero h2 { font-size: 23px; margin: 8px 0; }
+    .ws.m .ws-hero p { font-size: 12px; margin-bottom: 12px; }
+    .ws.m .ws-botoes { flex-direction: column; gap: 8px; }
+    .ws.m .ws-cards { flex-direction: column; gap: 8px; padding: 0 16px; }
+    .ws.m .ws-card { padding: 9px 12px; display: flex; align-items: center; gap: 10px; }
+    .ws.m .ws-card b { line-height: 1.3; }
+    .ws.m .ws-card b { margin: 0; font-size: 13px; }
+    .ws.m .ws-card small { display: none; }
+    .ws.m .ws-fim { display: none; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+</head>
+<body class="min-h-full bg-slate-900 text-slate-200 font-sans antialiased">
+  <div class="fixed inset-0 grade pointer-events-none" aria-hidden="true"></div>
+  <div class="fixed -top-40 left-1/2 -translate-x-1/2 w-[48rem] h-[28rem] rounded-full bg-purple-600/20 blur-3xl pointer-events-none" aria-hidden="true"></div>
+
+  <div class="relative max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+    <!-- Cabeçalho -->
+    <header class="flex items-center justify-between gap-4 mb-8">
+      <div class="flex items-center gap-3">
+        <div class="h-11 w-11 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 grid place-items-center font-extrabold text-slate-900 shadow-roxo">MXS</div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight">Máquina de Leads <span class="texto-neon">MXS</span></h1>
+          <p class="text-xs sm:text-sm text-slate-400">Negócios no Google Maps que ainda não têm site</p>
+        </div>
+      </div>
+      <span id="seloModo" class="hidden sm:inline-flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-full border border-amber-400/30 text-amber-300 bg-amber-400/10">
+        <span class="h-1.5 w-1.5 rounded-full bg-amber-300"></span> MODO SIMULAÇÃO
+      </span>
+    </header>
+
+    <!-- 1. Motor de busca -->
+    <section class="rounded-2xl border border-slate-700/70 bg-slate-800/60 backdrop-blur p-5 sm:p-6 shadow-neon">
+      <form id="formBusca" class="grid gap-4 md:grid-cols-[1fr_1fr_auto] md:items-end" novalidate>
+        <label class="block">
+          <span class="text-xs font-semibold uppercase tracking-wider text-cyan-300">Nicho</span>
+          <input id="nicho" type="text" placeholder="Ex: Pizzaria" autocomplete="off"
+            class="mt-1.5 w-full rounded-xl bg-slate-900/80 border border-slate-600 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30 transition">
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold uppercase tracking-wider text-purple-300">Região</span>
+          <input id="regiao" type="text" placeholder="Ex: Tatuapé, SP" autocomplete="off"
+            class="mt-1.5 w-full rounded-xl bg-slate-900/80 border border-slate-600 px-4 py-3 text-slate-100 placeholder-slate-500 outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-400/30 transition">
+        </label>
+        <button id="btnBuscar" type="submit"
+          class="inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-bold text-slate-900 bg-gradient-to-r from-cyan-400 to-purple-500 hover:brightness-110 active:scale-[.98] disabled:opacity-60 disabled:cursor-wait transition shadow-roxo">
+          <svg id="icoBusca" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <svg id="icoCarregando" class="h-5 w-5 animate-spin hidden" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+          <span id="txtBuscar">Buscar Oportunidades</span>
+        </button>
+      </form>
+      <p id="erroBusca" class="hidden mt-3 text-sm text-rose-400"></p>
+    </section>
+
+    <!-- Resumo da busca -->
+    <section id="resumo" class="hidden mt-6 grid grid-cols-3 gap-3">
+      <div class="rounded-xl border border-slate-700/70 bg-slate-800/50 p-4">
+        <p class="text-xs text-slate-400">Encontradas no Maps</p>
+        <p id="kpiTotal" class="mt-1 text-2xl font-extrabold font-mono text-slate-100">0</p>
+      </div>
+      <div class="rounded-xl border border-slate-700/70 bg-slate-800/50 p-4">
+        <p class="text-xs text-slate-400">Já têm site</p>
+        <p id="kpiComSite" class="mt-1 text-2xl font-extrabold font-mono text-slate-500">0</p>
+      </div>
+      <div class="rounded-xl border border-cyan-400/40 bg-cyan-400/5 p-4 shadow-neon">
+        <p class="text-xs text-cyan-300">Oportunidades (sem site)</p>
+        <p id="kpiOport" class="mt-1 text-2xl font-extrabold font-mono texto-neon">0</p>
+      </div>
+    </section>
+
+    <!-- 2. Tabela de oportunidades -->
+    <section class="mt-6 rounded-2xl border border-slate-700/70 bg-slate-800/40 overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-700/70">
+        <h2 class="font-bold">Oportunidades</h2>
+        <span id="legendaBusca" class="text-xs text-slate-400 font-mono truncate"></span>
+      </div>
+      <div class="md:overflow-x-auto">
+        <table class="w-full text-sm block md:table">
+          <thead class="hidden md:table-header-group text-left text-xs uppercase tracking-wider text-slate-400 bg-slate-900/40">
+            <tr>
+              <th class="px-5 py-3 font-semibold">Empresa</th>
+              <th class="px-5 py-3 font-semibold">Região</th>
+              <th class="px-5 py-3 font-semibold">Telefone</th>
+              <th class="px-5 py-3 font-semibold text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="corpoTabela" class="block md:table-row-group divide-y divide-slate-700/60"></tbody>
+        </table>
+      </div>
+      <div id="vazio" class="px-5 py-14 text-center">
+        <div class="mx-auto h-12 w-12 rounded-full bg-slate-700/50 grid place-items-center mb-3">
+          <svg class="h-6 w-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+        </div>
+        <p class="text-slate-300 font-medium">Nenhuma busca ainda</p>
+        <p class="text-slate-500 text-sm mt-1">Informe o nicho e a região e clique em <b class="text-slate-300">Buscar Oportunidades</b>.</p>
+      </div>
+    </section>
+
+    <p class="mt-6 text-xs text-slate-500 text-center">
+      Simulação: os dados são de exemplo. Na versão real, a busca vai para o Google Places pelo motor no Easypanel.
+    </p>
+  </div>
+
+  <!-- Prévia em PDF -->
+  <div id="modalPrevia" class="hidden fixed inset-0 z-50 bg-slate-950/85 overflow-y-auto p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="previaTitulo">
+    <div class="max-w-4xl mx-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-roxo">
+      <div class="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-700/70 bg-slate-900 rounded-t-2xl">
+        <div class="min-w-0">
+          <p class="text-xs font-semibold uppercase tracking-wider text-purple-300">Prévia do site em PDF</p>
+          <h3 id="previaTitulo" class="font-bold text-slate-100 truncate"></h3>
+        </div>
+        <button id="previaFechar" type="button" aria-label="Fechar" class="shrink-0 h-9 w-9 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white transition">✕</button>
+      </div>
+      <div id="previaCorpo" class="p-4 sm:p-5 space-y-4"></div>
+      <div id="previaAcoes" class="hidden sticky bottom-0 flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 border-t border-slate-700/70 bg-slate-900 rounded-b-2xl">
+        <p id="previaInfo" class="text-xs text-slate-400 sm:mr-auto"></p>
+        <div class="flex gap-2">
+          <button id="previaBaixar" type="button" class="flex-1 sm:flex-none rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-200 border border-slate-600 hover:border-cyan-400 hover:text-cyan-300 transition">Baixar PDF</button>
+          <button id="previaEnviar" type="button" class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white bg-green-600 hover:bg-green-500 shadow-[0_0_18px_-4px_rgba(34,197,94,.7)] transition"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="palco" aria-hidden="true"></div>
+
+  <!-- Aviso flutuante -->
+  <div id="aviso" class="fixed z-[60] bottom-5 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-600 text-sm shadow-xl opacity-0 pointer-events-none transition"></div>
+
+  <script>
+    // ===================== CONFIGURAÇÃO =====================
+    const MXS = {
+      remetente: 'Max',
+      empresa: 'MXS',
+      ddi: '55'
+    };
+
+    // Mensagem exata da abordagem. [NOME DA EMPRESA] é trocado pelo nome do lead.
+    const MENSAGEM_PADRAO =
+      'Olá, tudo bem? Meu nome é Max, sou da MXS. Estava pesquisando negócios na região e encontrei a [NOME DA EMPRESA] no Google Maps, mas notei que vocês ainda não possuem um site próprio cadastrado. Ter um site hoje funciona como a sua vitrine principal no Google e passa muita credibilidade para novos clientes. Gostaria de receber uma proposta rápida e sem compromisso para criarmos a página de vocês?';
+
+    // ===================== MOCK DO GOOGLE PLACES =====================
+    // Gerador pseudoaleatório com semente: a mesma busca devolve sempre os mesmos resultados.
+    function geradorComSemente(texto) {
+      let h = 2166136261;
+      for (const c of texto) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+      return () => { // mulberry32
+        h = (h + 0x6D2B79F5) | 0;
+        let t = Math.imul(h ^ (h >>> 15), 1 | h);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    // Simula a resposta da API do Google Places (Text Search).
+    // Vem misturado: empresas COM site e SEM site — o filtro abaixo é que separa.
+    async function simularBuscaGooglePlaces(nicho, regiao) {
+      await new Promise(r => setTimeout(r, 900));
+      const rnd = geradorComSemente(nicho.toLowerCase() + '|' + regiao.toLowerCase());
+      const ruas = ['Rua Tuiuti', 'Av. Celso Garcia', 'Rua Itapura', 'Rua Serra de Bragança', 'Rua Emília Marengo', 'Av. Salim Farah Maluf', 'Rua Azevedo Soares', 'Rua Antônio de Barros'];
+      const telefone = () => {
+        const n = () => Math.floor(rnd() * 10);
+        return `(11) 9${n()}${n()}${n()}${n()}-${n()}${n()}${n()}${n()}`;
+      };
+      const endereco = () => `${ruas[Math.floor(rnd() * ruas.length)]}, ${100 + Math.floor(rnd() * 1900)}`;
+      const n = nicho.trim();
+
+      return [
+        { nome: `${n} Bella Vista`,    endereco: endereco(), regiao, telefone: telefone(), website: null,                         avaliacao: 4.6, avaliacoes: 213 },
+        { nome: `${n} do Bairro`,      endereco: endereco(), regiao, telefone: telefone(), website: 'https://www.dobairro.com.br', avaliacao: 4.4, avaliacoes: 98 },
+        { nome: `${n} Sabor & Arte`,   endereco: endereco(), regiao, telefone: telefone(), website: '',                           avaliacao: 4.8, avaliacoes: 341 },
+        { nome: `${n} Central`,        endereco: endereco(), regiao, telefone: telefone(),                                        avaliacao: 4.2, avaliacoes: 57 },
+        { nome: `${n} Prime`,          endereco: endereco(), regiao, telefone: telefone(), website: 'https://primeoficial.com.br', avaliacao: 4.7, avaliacoes: 512 },
+        { nome: `${n} Família`,        endereco: endereco(), regiao, telefone: telefone(), website: '   ',                        avaliacao: 4.5, avaliacoes: 176 },
+        { nome: `${n} Express`,        endereco: endereco(), regiao, telefone: telefone(), website: undefined,                    avaliacao: 4.1, avaliacoes: 64 },
+        { nome: `${n} Gourmet`,        endereco: endereco(), regiao, telefone: telefone(), website: 'https://gourmet.site',       avaliacao: 4.3, avaliacoes: 120 }
+      ];
+    }
+
+    // O filtro crucial: só passa quem tem website nulo, indefinido ou vazio.
+    function semSite(empresa) {
+      const w = empresa.website;
+      return w === null || w === undefined || String(w).trim() === '';
+    }
+
+    // ===================== WHATSAPP =====================
+    function montarMensagem(nomeEmpresa) {
+      return MENSAGEM_PADRAO.replace('[NOME DA EMPRESA]', nomeEmpresa);
+    }
+
+    function soDigitos(tel) {
+      let d = String(tel || '').replace(/\D/g, '');
+      if (d.startsWith(MXS.ddi) && d.length > 11) d = d.slice(MXS.ddi.length);
+      return d;
+    }
+
+    function linkWhatsApp(empresa) {
+      return `https://wa.me/${MXS.ddi}${soDigitos(empresa.telefone)}?text=${encodeURIComponent(montarMensagem(empresa.nome))}`;
+    }
+
+    function abrirWhatsApp(empresa) {
+      window.open(linkWhatsApp(empresa), '_blank', 'noopener');
+    }
+
+    // ===================== PRÉVIA DO SITE (PDF) =====================
+    // Cada grupo de nicho tem cores, textos e seções próprias para o site de exemplo.
+    const GRUPOS = {
+      comida: {
+        p: '#dc2626', p2: '#fb923c',
+        titulo: b => `Sabor de verdade em <em>${b}</em>`,
+        sub: 'Veja o cardápio, peça pelo WhatsApp e receba quentinho em casa.',
+        cta: 'Ver cardápio', links: ['Cardápio', 'Delivery', 'Sobre', 'Contato'],
+        cards: [['📋', 'Cardápio online', 'Pratos, preços e fotos sempre atualizados.'], ['🛵', 'Delivery rápido', 'Pedido direto no WhatsApp, sem taxa de app.'], ['📅', 'Reservas', 'Garanta sua mesa em poucos cliques.']]
+      },
+      saude: {
+        p: '#0d9488', p2: '#38bdf8',
+        titulo: () => 'Cuidado de verdade, <em>perto de você</em>',
+        sub: 'Agende sua consulta online e conheça nossa equipe e especialidades.',
+        cta: 'Agendar consulta', links: ['Especialidades', 'Equipe', 'Convênios', 'Contato'],
+        cards: [['🩺', 'Especialidades', 'Tudo o que vocês oferecem, bem explicado.'], ['📅', 'Agendamento fácil', 'O paciente marca pelo WhatsApp em segundos.'], ['🤝', 'Equipe', 'Rostos e currículos que geram confiança.']]
+      },
+      auto: {
+        p: '#facc15', p2: '#f97316', escuro: true, btx: '#111827',
+        titulo: () => 'Seu carro em <em>boas mãos</em>',
+        sub: 'Mecânica de confiança, com orçamento rápido pelo WhatsApp.',
+        cta: 'Pedir orçamento', links: ['Serviços', 'Orçamento', 'Sobre', 'Contato'],
+        cards: [['🔧', 'Revisão completa', 'Check-up com transparência em cada etapa.'], ['🧰', 'Diagnóstico', 'Achamos o problema antes de cobrar.'], ['💬', 'Orçamento rápido', 'Mande a foto no WhatsApp e pronto.']]
+      },
+      beleza: {
+        p: '#db2777', p2: '#c084fc',
+        titulo: () => 'Seu estilo, <em>nossa arte</em>',
+        sub: 'Escolha o serviço, veja os horários livres e agende em segundos.',
+        cta: 'Agendar horário', links: ['Serviços', 'Galeria', 'Preços', 'Contato'],
+        cards: [['✂️', 'Serviços', 'Cortes, tratamentos e preços claros.'], ['📸', 'Galeria', 'Fotos dos trabalhos que vendem por vocês.'], ['📅', 'Agenda online', 'O cliente marca sem precisar ligar.']]
+      },
+      pet: {
+        p: '#ea580c', p2: '#fbbf24',
+        titulo: () => 'Carinho para <em>quem você ama</em>',
+        sub: 'Banho, tosa e cuidados com agendamento direto pelo WhatsApp.',
+        cta: 'Agendar banho', links: ['Serviços', 'Produtos', 'Sobre', 'Contato'],
+        cards: [['🛁', 'Banho e tosa', 'Horários livres e preços por porte.'], ['🦴', 'Produtos', 'Rações e acessórios em destaque.'], ['🚐', 'Leva e traz', 'Buscamos o pet na porta de casa.']]
+      },
+      fitness: {
+        p: '#84cc16', p2: '#22d3ee', escuro: true, btx: '#0b0f17',
+        titulo: () => 'Seu melhor <em>começa aqui</em>',
+        sub: 'Conheça as modalidades, os horários e agende sua aula experimental.',
+        cta: 'Aula experimental', links: ['Modalidades', 'Planos', 'Horários', 'Contato'],
+        cards: [['💪', 'Modalidades', 'Tudo o que a academia oferece.'], ['🗓️', 'Horários', 'Grade de aulas sempre atualizada.'], ['🎁', 'Aula grátis', 'O aluno novo agenda pelo WhatsApp.']]
+      },
+      geral: {
+        p: '#2563eb', p2: '#8b5cf6',
+        titulo: b => `Qualidade e confiança em <em>${b}</em>`,
+        sub: 'Conheça nossos serviços e fale com a gente direto pelo WhatsApp.',
+        cta: 'Fale conosco', links: ['Serviços', 'Sobre', 'Avaliações', 'Contato'],
+        cards: [['⭐', 'Qualidade', 'O que faz vocês serem a escolha certa.'], ['🤝', 'Atendimento', 'Resposta rápida pelo WhatsApp.'], ['📍', 'Fácil de chegar', 'Mapa e rota em um toque.']]
+      }
+    };
+
+    // Ordem importa: o primeiro que casar vence (ex.: "clínica veterinária" é pet, não saúde).
+    const REGRAS_NICHO = [
+      [/pizz/, 'comida', '🍕'], [/hamburg|burger|lanch/, 'comida', '🍔'], [/sushi|japones|temaker/, 'comida', '🍣'],
+      [/padar|cafe|confeit|doce|bolo/, 'comida', '🥐'], [/sorvet|acai/, 'comida', '🍨'],
+      [/restaur|churras|marmit|comida|bar\b|boteco|cozinha/, 'comida', '🍽️'],
+      [/veterin|pet|banho e tosa/, 'pet', '🐾'],
+      [/estetic|depila|massag|spa\b/, 'beleza', '💆'], [/barbe/, 'beleza', '💈'],
+      [/salao|cabel|manicur|unha|beleza|sobrancel|maqui/, 'beleza', '✂️'],
+      [/odonto|dent/, 'saude', '🦷'], [/clinic|medic|fisio|psico|nutri|saude|laborat|consult/, 'saude', '🩺'],
+      [/oficina|mecan|funilar|pneu|lava.?(rapido|jato)|auto|moto|carro/, 'auto', '🔧'],
+      [/academ|crossfit|pilates|fitness|muscula|luta|personal|funcional/, 'fitness', '💪']
+    ];
+
+    function normalizar(t) {
+      return String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    }
+
+    function rgba(hex, a) {
+      const n = parseInt(hex.slice(1), 16);
+      return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+    }
+
+    function temaDoLead(lead) {
+      const alvo = normalizar(lead.nicho + ' ' + lead.nome);
+      const regra = REGRAS_NICHO.find(([re]) => re.test(alvo)) || [null, 'geral', '🏪'];
+      const g = GRUPOS[regra[1]];
+      const cores = g.escuro
+        ? { bg: '#0b0f17', tx: '#f1f5f9', mu: '#94a3b8', cd: '#111827', ln: '#1f2937' }
+        : { bg: '#ffffff', tx: '#0f172a', mu: '#64748b', cd: '#f8fafc', ln: '#e2e8f0' };
+      return { ...g, ...cores, emoji: regra[2], btx: g.btx || '#ffffff', soft: rgba(g.p, g.escuro ? .14 : .1) };
+    }
+
+    function dominioSugerido(nome) {
+      return normalizar(nome).replace(/&/g, 'e').replace(/[^a-z0-9]/g, '') + '.com.br';
+    }
+
+    function bairroDe(regiao) {
+      return String(regiao).split(',')[0].trim();
+    }
+
+    function varsTema(t) {
+      return `--p:${t.p};--p2:${t.p2};--btx:${t.btx};--bg:${t.bg};--tx:${t.tx};--mu:${t.mu};--cd:${t.cd};--ln:${t.ln};--soft:${t.soft};--luz:${rgba(t.p, .45)}`;
+    }
+
+    // O html2canvas desenha emoji grande fora do lugar; aqui ele vira imagem já centralizada.
+    const cacheEmoji = {};
+    function emojiComoImagem(emoji) {
+      if (cacheEmoji[emoji]) return cacheEmoji[emoji];
+      const tam = 256, c = document.createElement('canvas');
+      c.width = c.height = tam;
+      const ctx = c.getContext('2d');
+      ctx.font = `${tam * 0.8}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      const m = ctx.measureText(emoji);
+      ctx.fillText(emoji, tam / 2, tam / 2 + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2);
+      return (cacheEmoji[emoji] = c.toDataURL('image/png'));
+    }
+
+    // O site de exemplo. celular=true usa o layout empilhado.
+    function siteExemplo(lead, t, celular) {
+      const bairro = escapar(bairroDe(lead.regiao));
+      // html2canvas corta texto com overflow:hidden, então o nome longo é encurtado aqui.
+      const max = celular ? 19 : 30;
+      const marca = escapar(lead.nome.length > max ? lead.nome.slice(0, max - 1).trim() + '…' : lead.nome);
+      return `
+        <div class="ws${celular ? ' m' : ''}">
+          <div class="ws-nav">
+            <div class="ws-marca"><span class="ico"><img src="${emojiComoImagem(t.emoji)}" alt=""></span><span class="nm">${marca}</span></div>
+            <div class="ws-links">${t.links.map(l => `<span>${l}</span>`).join('')}</div>
+            <span class="ws-btn">${t.cta}</span>
+            <span class="ws-menu">☰</span>
+          </div>
+          <div class="ws-hero">
+            <div class="txt">
+              <span class="ws-selo">★ ${lead.avaliacao.toFixed(1)} no Google · ${lead.avaliacoes} avaliações</span>
+              <h2>${t.titulo(bairro)}</h2>
+              <p>${t.sub}</p>
+              <div class="ws-botoes">
+                <span class="ws-btn">${t.cta}</span>
+                <span class="ws-btn zap">💬 Chamar no WhatsApp</span>
+              </div>
+            </div>
+            <div class="ws-arte"><img class="emo" src="${emojiComoImagem(t.emoji)}" alt=""><span class="ws-nota"><span>★★★★★</span> ${lead.avaliacao.toFixed(1)} · ${lead.avaliacoes} avaliações</span></div>
+          </div>
+          <div class="ws-cards">
+            ${t.cards.map(([e, b, s]) => `<div class="ws-card"><span class="e">${e}</span><b>${b}</b><small>${s}</small></div>`).join('')}
+          </div>
+          <div class="ws-fim"><span>📍 ${escapar(lead.endereco)} · ${bairro}</span><span>📞 ${escapar(lead.telefone)}</span></div>
+        </div>`;
+    }
+
+    function celular(lead, t, estilo) {
+      return `<div class="cel" style="${estilo}"><div class="cel-tela"><span class="cel-notch"></span>${siteExemplo(lead, t, true)}</div></div>`;
+    }
+
+    function rodapeMxs() {
+      return `<div class="sl-rodape"><span class="sl-logo">MXS</span><span><b>${MXS.remetente} · ${MXS.empresa}</b> — Sites e Landing Pages</span></div>`;
+    }
+
+    function slidesDaPrevia(lead, t) {
+      const nome = escapar(lead.nome);
+      const bairro = escapar(bairroDe(lead.regiao));
+      const nicho = escapar(lead.nicho.toLowerCase());
+      const dominio = dominioSugerido(lead.nome);
+      const vars = varsTema(t);
+      const tamTitulo = lead.nome.length > 24 ? 'font-size:48px' : '';
+
+      const capa = `
+        <section class="sl" style="${vars}">
+          <div class="sl-luz" style="left:-280px;top:-320px"></div>
+          <div class="sl-luz" style="right:-300px;bottom:-380px;--luz:rgba(168,85,247,.4)"></div>
+          <div style="position:absolute;left:72px;top:118px;width:680px">
+            <span class="sl-tag">PRÉVIA EXCLUSIVA</span>
+            <h1 class="sl-h1" style="${tamTitulo}">Como ficaria o site da<br><span>${nome}</span></h1>
+            <p class="sl-lead">Uma demonstração feita especialmente para vocês, a partir do perfil da empresa no Google Maps.</p>
+            <div class="sl-chips"><span>📍 ${bairro}</span><span>★ ${lead.avaliacao.toFixed(1)} · ${lead.avaliacoes} avaliações</span><span>🌐 ${dominio}</span></div>
+          </div>
+          ${celular(lead, t, 'right:120px;top:84px;transform:rotate(-4deg)')}
+          ${rodapeMxs()}
+        </section>`;
+
+      const pagina = `
+        <section class="sl" style="${vars}">
+          <div class="sl-luz" style="left:200px;top:-420px"></div>
+          <div style="position:absolute;left:72px;top:30px">
+            <span class="sl-tag">PÁGINA INICIAL</span>
+            <h2 class="sl-h2" style="font-size:28px;margin-top:12px">No computador e no celular</h2>
+          </div>
+          <div class="nav-frame" style="left:72px;top:146px;height:534px">
+            <div class="nav-barra"><i style="background:#f87171"></i><i style="background:#fbbf24"></i><i style="background:#4ade80"></i><span class="nav-url">🔒 www.${dominio}</span></div>
+            <div class="nav-corpo">${siteExemplo(lead, t, false)}</div>
+          </div>
+          ${celular(lead, t, 'right:72px;top:112px')}
+        </section>`;
+
+      const beneficios = [
+        ['🔎', 'Aparecer no Google', `Quem procura ${nicho} em ${bairro} encontra vocês.`],
+        ['💬', 'Botão de WhatsApp', 'Um toque e o cliente já está conversando com vocês.'],
+        ['📱', 'Perfeito no celular', 'Rápido e bonito em qualquer tela.'],
+        ['📍', 'Mapa e endereço', 'Fica fácil chegar até vocês.'],
+        ['⭐', 'Avaliações em destaque', `As ${lead.avaliacoes} avaliações do Google viram prova de confiança.`],
+        ['🌐', 'Domínio próprio', `Um endereço profissional, como ${dominio}.`]
+      ];
+      const inclui = `
+        <section class="sl" style="${vars}">
+          <div class="sl-luz" style="right:-320px;top:-380px"></div>
+          <div style="position:absolute;left:72px;top:52px;right:72px">
+            <span class="sl-tag">O QUE ESTÁ INCLUSO</span>
+            <h2 class="sl-h2">O site da <span>${nome}</span> vai ter:</h2>
+          </div>
+          <div class="sl-beneficios">
+            ${beneficios.map(([e, b, s]) => `<div class="sl-ben"><span class="e">${e}</span><b>${b}</b><small>${s}</small></div>`).join('')}
+          </div>
+          <div class="sl-cta">
+            <p>Gostou da prévia? É só responder a mensagem que eu preparo a proposta completa, sem compromisso.</p>
+            <span class="ass"><span class="sl-logo">MXS</span>${MXS.remetente} · ${MXS.empresa}</span>
+          </div>
+        </section>`;
+
+      return capa + pagina + inclui;
+    }
+
+    function nomeDoArquivo(lead) {
+      return `Previa-site-${normalizar(lead.nome).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}.pdf`;
+    }
+
+    // Monta os slides fora da tela, fotografa cada um e junta num PDF 16:9.
+    async function gerarPrevia(lead) {
+      if (!window.html2canvas || !window.jspdf) throw new Error('Bibliotecas do PDF ainda não carregaram. Verifique a internet.');
+      const palco = $('palco');
+      palco.innerHTML = slidesDaPrevia(lead, temaDoLead(lead));
+      try {
+        await document.fonts.ready;
+        const imagens = [];
+        for (const sl of palco.querySelectorAll('.sl')) {
+          const canvas = await html2canvas(sl, { scale: 2, backgroundColor: '#0b1120', logging: false });
+          imagens.push(canvas.toDataURL('image/jpeg', 0.9));
+        }
+        const pdf = new jspdf.jsPDF({ orientation: 'landscape', unit: 'px', format: [1280, 720], hotfixes: ['px_scaling'], compress: true });
+        imagens.forEach((img, i) => {
+          if (i) pdf.addPage([1280, 720], 'landscape');
+          pdf.addImage(img, 'JPEG', 0, 0, 1280, 720);
+        });
+        pdf.setProperties({ title: `Prévia do site — ${lead.nome}`, author: `${MXS.remetente} · ${MXS.empresa}` });
+        return { imagens, blob: pdf.output('blob'), arquivo: nomeDoArquivo(lead) };
+      } finally {
+        palco.innerHTML = '';
+      }
+    }
+
+    function baixarArquivo(blob, nome) {
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), { href: url, download: nome });
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    // No celular o PDF vai junto pela folha de compartilhar; no computador baixa e abre o WhatsApp.
+    const NO_CELULAR = matchMedia('(pointer: coarse)').matches;
+
+    async function enviarComPdf(lead, previa) {
+      const arquivo = new File([previa.blob], previa.arquivo, { type: 'application/pdf' });
+      if (NO_CELULAR && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+        try {
+          await navigator.share({ files: [arquivo], text: montarMensagem(lead.nome) });
+        } catch (e) {
+          if (e.name !== 'AbortError') avisar('Não deu para compartilhar o PDF');
+        }
+        return;
+      }
+      baixarArquivo(previa.blob, previa.arquivo);
+      abrirWhatsApp(lead);
+      avisar('PDF baixado — arraste o arquivo para a conversa');
+    }
+
+    // ===================== TELA =====================
+    const $ = id => document.getElementById(id);
+    const ICONE_WHATSAPP = '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35M12.05 21.5h-.01a9.4 9.4 0 0 1-4.8-1.32l-.34-.2-3.57.94.95-3.48-.22-.36a9.4 9.4 0 0 1-1.45-5.02c0-5.2 4.24-9.44 9.45-9.44a9.4 9.4 0 0 1 9.44 9.45c0 5.2-4.24 9.43-9.45 9.43m8.03-17.47A11.3 11.3 0 0 0 12.05.7C5.79.7.7 5.79.7 12.04c0 2 .52 3.95 1.52 5.67L.6 23.6l6.03-1.58a11.3 11.3 0 0 0 5.42 1.38h.01c6.25 0 11.34-5.09 11.35-11.35 0-3.03-1.18-5.88-3.33-8.02"/></svg>';
+    let leadsAtuais = [];
+
+    function escapar(t) {
+      return String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function avisar(texto) {
+      const el = $('aviso');
+      el.textContent = texto;
+      el.classList.remove('opacity-0');
+      clearTimeout(avisar.t);
+      avisar.t = setTimeout(() => el.classList.add('opacity-0'), 2200);
+    }
+
+    function carregando(sim) {
+      $('btnBuscar').disabled = sim;
+      $('icoBusca').classList.toggle('hidden', sim);
+      $('icoCarregando').classList.toggle('hidden', !sim);
+      $('txtBuscar').textContent = sim ? 'Buscando no Maps…' : 'Buscar Oportunidades';
+    }
+
+    function renderizar(leads) {
+      const corpo = $('corpoTabela');
+      $('vazio').classList.toggle('hidden', leads.length > 0);
+      corpo.innerHTML = leads.map((e, i) => `
+        <tr class="linha-entra grid grid-cols-2 gap-x-3 gap-y-2 p-4 md:p-0 md:table-row hover:bg-slate-700/20 transition" style="animation-delay:${i * 60}ms">
+          <td class="col-span-2 md:px-5 md:py-4">
+            <div class="font-semibold text-slate-100">${escapar(e.nome)}</div>
+            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/20">Sem site</span>
+              <span>★ ${e.avaliacao.toFixed(1)} (${e.avaliacoes})</span>
+              <span class="hidden sm:inline">· ${escapar(e.endereco)}</span>
+            </div>
+          </td>
+          <td class="md:px-5 md:py-4 text-slate-300 whitespace-nowrap">${escapar(e.regiao)}</td>
+          <td class="md:px-5 md:py-4 font-mono text-slate-300 whitespace-nowrap text-right md:text-left">${escapar(e.telefone)}</td>
+          <td class="col-span-2 pt-1 md:px-5 md:py-4">
+            <div class="flex justify-end gap-2">
+              <button data-acao="copiar" data-i="${i}" title="Copiar mensagem"
+                class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-300 border border-slate-600 hover:border-cyan-400 hover:text-cyan-300 transition">Copiar</button>
+              <button data-acao="previa" data-i="${i}" title="Gerar prévia do site em PDF"
+                class="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-purple-200 border border-purple-400/50 bg-purple-500/10 hover:bg-purple-500/20 hover:border-purple-300 transition whitespace-nowrap">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18M8 21h8"/></svg>
+                ${e.previa ? 'Prévia ✓' : 'Prévia'}
+              </button>
+              <button data-acao="whatsapp" data-i="${i}"
+                class="flex-1 md:flex-none inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold text-white bg-green-600 hover:bg-green-500 shadow-[0_0_18px_-4px_rgba(34,197,94,.7)] transition whitespace-nowrap">
+                ${ICONE_WHATSAPP} WhatsApp
+              </button>
+            </div>
+          </td>
+        </tr>`).join('');
+    }
+
+    async function buscarOportunidades(ev) {
+      ev.preventDefault();
+      const nicho = $('nicho').value.trim();
+      const regiao = $('regiao').value.trim();
+      const erro = $('erroBusca');
+      if (!nicho || !regiao) {
+        erro.textContent = 'Preencha o nicho e a região para buscar.';
+        erro.classList.remove('hidden');
+        (!nicho ? $('nicho') : $('regiao')).focus();
+        return;
+      }
+      erro.classList.add('hidden');
+      carregando(true);
+      try {
+        const todas = await simularBuscaGooglePlaces(nicho, regiao);
+        leadsAtuais = todas.filter(semSite).map(e => ({ ...e, nicho }));
+        $('kpiTotal').textContent = todas.length;
+        $('kpiComSite').textContent = todas.length - leadsAtuais.length;
+        $('kpiOport').textContent = leadsAtuais.length;
+        $('resumo').classList.remove('hidden');
+        $('legendaBusca').textContent = `${nicho} · ${regiao}`;
+        renderizar(leadsAtuais);
+      } finally {
+        carregando(false);
+      }
+    }
+
+    $('formBusca').addEventListener('submit', buscarOportunidades);
+
+    $('corpoTabela').addEventListener('click', async ev => {
+      const btn = ev.target.closest('button[data-acao]');
+      if (!btn) return;
+      const lead = leadsAtuais[Number(btn.dataset.i)];
+      if (btn.dataset.acao === 'whatsapp') {
+        abrirWhatsApp(lead);
+      } else if (btn.dataset.acao === 'previa') {
+        abrirPrevia(lead);
+      } else {
+        try {
+          await navigator.clipboard.writeText(montarMensagem(lead.nome));
+          avisar('Mensagem copiada');
+        } catch {
+          avisar('Não deu para copiar neste navegador');
+        }
+      }
+    });
+
+    // ----- Janela da prévia -----
+    let previaAberta = null; // { lead, previa }
+
+    function fecharPrevia() {
+      $('modalPrevia').classList.add('hidden');
+      document.body.style.overflow = '';
+      previaAberta = null;
+    }
+
+    async function abrirPrevia(lead) {
+      $('previaTitulo').textContent = lead.nome;
+      $('previaAcoes').classList.add('hidden');
+      $('previaCorpo').innerHTML = `
+        <div class="py-16 text-center">
+          <svg class="h-8 w-8 mx-auto animate-spin text-purple-400" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+          <p class="mt-3 text-slate-300 font-medium">Montando o site de exemplo…</p>
+          <p class="text-slate-500 text-sm">Leva só alguns segundos.</p>
+        </div>`;
+      $('modalPrevia').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      previaAberta = { lead };
+
+      try {
+        lead._previa = lead._previa || await gerarPrevia(lead);
+      } catch (e) {
+        if (previaAberta?.lead === lead) $('previaCorpo').innerHTML = `<p class="py-12 text-center text-rose-400">${escapar(e.message)}</p>`;
+        return;
+      }
+      if (previaAberta?.lead !== lead) return; // fechou antes de terminar
+      previaAberta.previa = lead._previa;
+      if (!lead.previa) { lead.previa = true; renderizar(leadsAtuais); }
+
+      const { imagens, blob, arquivo } = lead._previa;
+      $('previaCorpo').innerHTML = imagens.map((src, i) =>
+        `<img src="${src}" alt="Página ${i + 1} da prévia" class="w-full rounded-xl border border-slate-700/70">`).join('');
+      $('previaInfo').textContent = `${imagens.length} páginas · ${Math.round(blob.size / 1024)} KB · ${arquivo}` +
+        (NO_CELULAR ? '' : ' — no computador o PDF é baixado e o WhatsApp abre; é só arrastar o arquivo para a conversa.');
+      $('previaEnviar').innerHTML = `${ICONE_WHATSAPP} Enviar no WhatsApp com PDF`;
+      $('previaAcoes').classList.remove('hidden');
+    }
+
+    $('previaFechar').addEventListener('click', fecharPrevia);
+    $('modalPrevia').addEventListener('click', ev => { if (ev.target === ev.currentTarget) fecharPrevia(); });
+    document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && previaAberta) fecharPrevia(); });
+    $('previaBaixar').addEventListener('click', () => {
+      if (previaAberta?.previa) baixarArquivo(previaAberta.previa.blob, previaAberta.previa.arquivo);
+    });
+    $('previaEnviar').addEventListener('click', () => {
+      if (previaAberta?.previa) enviarComPdf(previaAberta.lead, previaAberta.previa);
+    });
+  </script>
+</body>
+</html>
