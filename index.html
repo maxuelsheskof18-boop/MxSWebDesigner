@@ -137,9 +137,12 @@
           <p class="text-xs sm:text-sm text-slate-400">Negócios no Google Maps que ainda não têm site</p>
         </div>
       </div>
-      <span id="seloModo" class="hidden sm:inline-flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-full border border-amber-400/30 text-amber-300 bg-amber-400/10">
-        <span class="h-1.5 w-1.5 rounded-full bg-amber-300"></span> MODO SIMULAÇÃO
-      </span>
+      <div class="flex items-center gap-2">
+        <span id="seloModo" class="hidden lg:inline-flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-full border border-amber-400/30 text-amber-300 bg-amber-400/10">
+          <span class="h-1.5 w-1.5 rounded-full bg-amber-300"></span> MODO SIMULAÇÃO
+        </span>
+        <button id="btnWhats" type="button" class="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full border transition whitespace-nowrap"></button>
+      </div>
     </header>
 
     <!-- 1. Motor de busca -->
@@ -234,6 +237,50 @@
       </div>
     </div>
   </div>
+  <!-- Conectar WhatsApp (Evolution API) -->
+  <div id="modalWhats" class="hidden fixed inset-0 z-50 bg-slate-950/85 overflow-y-auto p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="whatsTitulo">
+    <div class="max-w-lg mx-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-neon">
+      <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-700/70">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-green-300">Envio direto</p>
+          <h3 id="whatsTitulo" class="font-bold text-slate-100">Conectar WhatsApp</h3>
+        </div>
+        <button id="whatsFechar" type="button" aria-label="Fechar" class="shrink-0 h-9 w-9 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white transition">✕</button>
+      </div>
+      <form id="formWhats" class="p-5 space-y-4" novalidate>
+        <p class="text-sm text-slate-400">Abra o <b class="text-slate-200">WhatsApp local</b> (pasta <code class="text-slate-300">whatsapp-local</code> › <code class="text-slate-300">iniciar.bat</code>) e copie a API key que aparece na janela. Conectado, o painel envia a mensagem e o PDF direto, sem abrir o WhatsApp. Também funciona com uma Evolution API num servidor.</p>
+        <label class="block">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Endereço</span>
+          <input id="evoUrl" type="url" placeholder="http://localhost:8080" autocomplete="off"
+            class="mt-1.5 w-full rounded-xl bg-slate-950/60 border border-slate-600 px-4 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-green-400 focus:ring-2 focus:ring-green-400/30">
+        </label>
+        <label class="block">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">API key</span>
+          <input id="evoChave" type="password" autocomplete="off"
+            class="mt-1.5 w-full rounded-xl bg-slate-950/60 border border-slate-600 px-4 py-2.5 text-slate-100 outline-none focus:border-green-400 focus:ring-2 focus:ring-green-400/30">
+        </label>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Instância</span>
+            <input id="evoInstancia" type="text" placeholder="mxs" autocomplete="off"
+              class="mt-1.5 w-full rounded-xl bg-slate-950/60 border border-slate-600 px-4 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-green-400 focus:ring-2 focus:ring-green-400/30">
+          </label>
+          <label class="block">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Limite por dia</span>
+            <input id="evoLimite" type="number" min="1" max="200" placeholder="10"
+              class="mt-1.5 w-full rounded-xl bg-slate-950/60 border border-slate-600 px-4 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-green-400 focus:ring-2 focus:ring-green-400/30">
+          </label>
+        </div>
+        <p class="text-xs text-slate-500">Os dados ficam salvos só neste navegador.</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="submit" class="rounded-lg px-4 py-2.5 text-sm font-bold text-white bg-green-600 hover:bg-green-500 transition">Salvar e conectar</button>
+          <button id="evoDesconectar" type="button" class="hidden rounded-lg px-4 py-2.5 text-sm font-semibold text-rose-300 border border-rose-500/40 hover:bg-rose-500/10 transition">Desconectar número</button>
+        </div>
+      </form>
+      <div id="whatsStatus" class="px-5 pb-5"></div>
+    </div>
+  </div>
+
   <div id="palco" aria-hidden="true"></div>
 
   <!-- Aviso flutuante -->
@@ -296,6 +343,8 @@
     }
 
     // ===================== WHATSAPP =====================
+    const NO_CELULAR = matchMedia('(pointer: coarse)').matches;
+
     function montarMensagem(nomeEmpresa) {
       return MENSAGEM_PADRAO.replace('[NOME DA EMPRESA]', nomeEmpresa);
     }
@@ -306,12 +355,18 @@
       return d;
     }
 
+    // No computador vai direto para o WhatsApp Web (sem a página "Abrir WhatsApp?"); no celular, wa.me abre o app.
     function linkWhatsApp(empresa) {
-      return `https://wa.me/${MXS.ddi}${soDigitos(empresa.telefone)}?text=${encodeURIComponent(montarMensagem(empresa.nome))}`;
+      const numero = MXS.ddi + soDigitos(empresa.telefone);
+      const texto = encodeURIComponent(montarMensagem(empresa.nome));
+      return NO_CELULAR
+        ? `https://wa.me/${numero}?text=${texto}`
+        : `https://web.whatsapp.com/send?phone=${numero}&text=${texto}`;
     }
 
+    // Abre sempre na mesma aba "mxs-whatsapp", em vez de uma aba nova a cada lead.
     function abrirWhatsApp(empresa) {
-      window.open(linkWhatsApp(empresa), '_blank', 'noopener');
+      window.open(linkWhatsApp(empresa), 'mxs-whatsapp');
     }
 
     // ===================== PRÉVIA DO SITE (PDF) =====================
@@ -569,7 +624,6 @@
     }
 
     // No celular o PDF vai junto pela folha de compartilhar; no computador baixa e abre o WhatsApp.
-    const NO_CELULAR = matchMedia('(pointer: coarse)').matches;
 
     async function enviarComPdf(lead, previa) {
       const arquivo = new File([previa.blob], previa.arquivo, { type: 'application/pdf' });
@@ -586,6 +640,141 @@
       avisar('PDF baixado — arraste o arquivo para a conversa');
     }
 
+    // ===================== WHATSAPP CONECTADO (Evolution API v2) =====================
+    // Com a Evolution conectada, o painel manda texto e PDF direto, sem abrir o WhatsApp.
+    const CHAVE_EVO = 'mxs-evolution', CHAVE_CONTA = 'mxs-envios-dia';
+
+    function lerLocal(chave, padrao) {
+      try { return JSON.parse(localStorage.getItem(chave)) ?? padrao; } catch { return padrao; }
+    }
+    function gravarLocal(chave, valor) {
+      try { localStorage.setItem(chave, JSON.stringify(valor)); } catch { /* navegador sem armazenamento */ }
+    }
+
+    let evo = { url: 'http://localhost:8080', apikey: '', instancia: 'mxs', limite: 10, ...lerLocal(CHAVE_EVO, {}) };
+    let evoEstado = null; // 'open' = conectado; 'inexistente' = instância ainda não criada
+
+    const evoConfigurado = () => Boolean(evo.url && evo.apikey && evo.instancia);
+    const evoConectado = () => evoConfigurado() && evoEstado === 'open';
+    const evoInst = () => encodeURIComponent(evo.instancia);
+
+    async function evoChamar(metodo, caminho, corpo) {
+      let resp;
+      try {
+        resp = await fetch(evo.url.replace(/\/+$/, '') + caminho, {
+          method: metodo,
+          headers: corpo ? { apikey: evo.apikey, 'Content-Type': 'application/json' } : { apikey: evo.apikey },
+          body: corpo ? JSON.stringify(corpo) : undefined,
+          signal: AbortSignal.timeout(60000)
+        });
+      } catch {
+        throw new Error('Não consegui falar com o WhatsApp. Confira se a janela do iniciar.bat está aberta (ou, numa Evolution em servidor, o endereço e o CORS_ORIGIN=*).');
+      }
+      const dados = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        const msg = dados?.response?.message || dados?.message || `HTTP ${resp.status}`;
+        const erro = new Error(`Evolution: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
+        erro.status = resp.status;
+        throw erro;
+      }
+      return dados;
+    }
+
+    async function evoAtualizarEstado() {
+      const antes = evoEstado;
+      if (!evoConfigurado()) {
+        evoEstado = null;
+      } else {
+        try {
+          const d = await evoChamar('GET', `/instance/connectionState/${evoInst()}`);
+          evoEstado = d?.instance?.state || d?.state || null;
+        } catch (e) {
+          evoEstado = e.status === 404 ? 'inexistente' : 'erro';
+        }
+      }
+      pintarStatusWhats();
+      if (antes !== evoEstado && leadsAtuais.length) renderizar(leadsAtuais);
+      return evoEstado;
+    }
+
+    // QR code (data URL) para ler no celular. Cria a instância se ainda não existir.
+    async function evoQrCode() {
+      if (evoEstado === 'inexistente') {
+        const d = await evoChamar('POST', '/instance/create', { instanceName: evo.instancia, integration: 'WHATSAPP-BAILEYS', qrcode: true });
+        evoEstado = 'connecting';
+        if (d?.qrcode?.base64) return d.qrcode.base64;
+      }
+      const d = await evoChamar('GET', `/instance/connect/${evoInst()}`);
+      return d?.base64 || d?.qrcode?.base64 || null;
+    }
+
+    // Confere se o número tem WhatsApp (telefone fixo do Maps é comum) e devolve o número certo.
+    async function evoNumeroComWhats(telefone) {
+      const d = soDigitos(telefone);
+      if (d.length !== 10 && d.length !== 11) throw new Error('Telefone inválido para WhatsApp.');
+      const lista = await evoChamar('POST', `/chat/whatsappNumbers/${evoInst()}`, { numbers: [MXS.ddi + d] });
+      const item = Array.isArray(lista) ? lista[0] : null;
+      if (!item?.exists) throw new Error('Esse número não tem WhatsApp (pode ser telefone fixo).');
+      return String(item.jid || item.number || MXS.ddi + d).split('@')[0];
+    }
+
+    function blobParaBase64(blob) {
+      return new Promise((ok, falha) => {
+        const r = new FileReader();
+        r.onload = () => ok(String(r.result).split(',')[1]);
+        r.onerror = falha;
+        r.readAsDataURL(blob);
+      });
+    }
+
+    // Envios do dia (contados neste navegador): muita conversa nova no mesmo dia derruba o número.
+    const hoje = () => new Date().toLocaleDateString('pt-BR');
+    function enviosHoje() {
+      const c = lerLocal(CHAVE_CONTA, {});
+      return c.dia === hoje() ? c.n : 0;
+    }
+    function contarEnvio() {
+      gravarLocal(CHAVE_CONTA, { dia: hoje(), n: enviosHoje() + 1 });
+      pintarStatusWhats();
+    }
+
+    async function enviarDireto(lead, previa) {
+      const limite = Number(evo.limite) || 10;
+      if (enviosHoje() >= limite &&
+          !confirm(`Você já mandou ${enviosHoje()} mensagens hoje (limite ${limite}). Muitas conversas novas no mesmo dia podem bloquear o número. Enviar mesmo assim?`)) return false;
+      const numero = await evoNumeroComWhats(lead.telefone);
+      await evoChamar('POST', `/message/sendText/${evoInst()}`, { number: numero, text: montarMensagem(lead.nome), delay: 1200 });
+      if (previa) {
+        await evoChamar('POST', `/message/sendMedia/${evoInst()}`, {
+          number: numero, mediatype: 'document', mimetype: 'application/pdf',
+          media: await blobParaBase64(previa.blob), fileName: previa.arquivo
+        });
+      }
+      contarEnvio();
+      lead.enviado = true;
+      renderizar(leadsAtuais);
+      return true;
+    }
+
+    // Conectado: envia direto. Senão: WhatsApp Web (computador) ou app/compartilhar (celular).
+    async function enviarLead(lead, previa, botao) {
+      if (!evoConectado()) {
+        if (previa) enviarComPdf(lead, previa); else abrirWhatsApp(lead);
+        return;
+      }
+      const original = botao.innerHTML;
+      botao.disabled = true;
+      botao.textContent = 'Enviando…';
+      try {
+        if (await enviarDireto(lead, previa)) avisar(previa ? `Mensagem e PDF enviados para ${lead.nome} ✓` : `Mensagem enviada para ${lead.nome} ✓`);
+      } catch (e) {
+        avisar(e.message);
+      } finally {
+        botao.disabled = false;
+        botao.innerHTML = original;
+      }
+    }
+
     // ===================== TELA =====================
     const $ = id => document.getElementById(id);
     const ICONE_WHATSAPP = '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.7.63.71.23 1.36.2 1.87.12.57-.08 1.76-.72 2-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35M12.05 21.5h-.01a9.4 9.4 0 0 1-4.8-1.32l-.34-.2-3.57.94.95-3.48-.22-.36a9.4 9.4 0 0 1-1.45-5.02c0-5.2 4.24-9.44 9.45-9.44a9.4 9.4 0 0 1 9.44 9.45c0 5.2-4.24 9.43-9.45 9.43m8.03-17.47A11.3 11.3 0 0 0 12.05.7C5.79.7.7 5.79.7 12.04c0 2 .52 3.95 1.52 5.67L.6 23.6l6.03-1.58a11.3 11.3 0 0 0 5.42 1.38h.01c6.25 0 11.34-5.09 11.35-11.35 0-3.03-1.18-5.88-3.33-8.02"/></svg>';
@@ -600,7 +789,7 @@
       el.textContent = texto;
       el.classList.remove('opacity-0');
       clearTimeout(avisar.t);
-      avisar.t = setTimeout(() => el.classList.add('opacity-0'), 2200);
+      avisar.t = setTimeout(() => el.classList.add('opacity-0'), Math.max(2200, texto.length * 70));
     }
 
     function carregando(sim) {
@@ -634,9 +823,9 @@
                 <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18M8 21h8"/></svg>
                 ${e.previa ? 'Prévia ✓' : 'Prévia'}
               </button>
-              <button data-acao="whatsapp" data-i="${i}"
+              <button data-acao="whatsapp" data-i="${i}" title="${evoConectado() ? 'Enviar direto pelo WhatsApp conectado' : 'Abrir no WhatsApp'}"
                 class="flex-1 md:flex-none inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold text-white bg-green-600 hover:bg-green-500 shadow-[0_0_18px_-4px_rgba(34,197,94,.7)] transition whitespace-nowrap">
-                ${ICONE_WHATSAPP} WhatsApp
+                ${ICONE_WHATSAPP} ${e.enviado ? 'Enviado ✓' : evoConectado() ? 'Enviar' : 'WhatsApp'}
               </button>
             </div>
           </td>
@@ -677,7 +866,8 @@
       if (!btn) return;
       const lead = leadsAtuais[Number(btn.dataset.i)];
       if (btn.dataset.acao === 'whatsapp') {
-        abrirWhatsApp(lead);
+        if (evoConectado() && !confirm(`${lead.enviado ? 'Já enviado antes. Enviar de novo' : 'Enviar a mensagem'} para ${lead.nome} — ${lead.telefone}?`)) return;
+        enviarLead(lead, null, btn);
       } else if (btn.dataset.acao === 'previa') {
         abrirPrevia(lead);
       } else {
@@ -726,8 +916,9 @@
       $('previaCorpo').innerHTML = imagens.map((src, i) =>
         `<img src="${src}" alt="Página ${i + 1} da prévia" class="w-full rounded-xl border border-slate-700/70">`).join('');
       $('previaInfo').textContent = `${imagens.length} páginas · ${Math.round(blob.size / 1024)} KB · ${arquivo}` +
-        (NO_CELULAR ? '' : ' — no computador o PDF é baixado e o WhatsApp abre; é só arrastar o arquivo para a conversa.');
-      $('previaEnviar').innerHTML = `${ICONE_WHATSAPP} Enviar no WhatsApp com PDF`;
+        (evoConectado() ? ' — vai direto pelo WhatsApp conectado: mensagem e depois o PDF.'
+          : NO_CELULAR ? '' : ' — o PDF é baixado e o WhatsApp Web abre; é só arrastar o arquivo para a conversa.');
+      $('previaEnviar').innerHTML = `${ICONE_WHATSAPP} ${evoConectado() ? 'Enviar mensagem + PDF' : 'Enviar no WhatsApp com PDF'}`;
       $('previaAcoes').classList.remove('hidden');
     }
 
@@ -738,8 +929,117 @@
       if (previaAberta?.previa) baixarArquivo(previaAberta.previa.blob, previaAberta.previa.arquivo);
     });
     $('previaEnviar').addEventListener('click', () => {
-      if (previaAberta?.previa) enviarComPdf(previaAberta.lead, previaAberta.previa);
+      if (previaAberta?.previa) enviarLead(previaAberta.lead, previaAberta.previa, $('previaEnviar'));
     });
+
+    // ----- Janela "Conectar WhatsApp" -----
+    function pintarStatusWhats() {
+      const b = $('btnWhats');
+      const base = 'inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full border transition whitespace-nowrap ';
+      const ponto = cor => `<span class="h-2 w-2 rounded-full ${cor}"></span>`;
+      if (evoConectado()) {
+        b.className = base + 'border-green-500/40 text-green-300 bg-green-500/10 hover:bg-green-500/20';
+        b.innerHTML = `${ponto('bg-green-400')} WhatsApp conectado · hoje ${enviosHoje()}/${Number(evo.limite) || 10}`;
+      } else if (evoConfigurado()) {
+        b.className = base + 'border-amber-400/40 text-amber-300 bg-amber-400/10 hover:bg-amber-400/20';
+        b.innerHTML = `${ponto('bg-amber-300')} WhatsApp desconectado`;
+      } else {
+        b.className = base + 'border-slate-600 text-slate-300 hover:border-green-400 hover:text-green-300';
+        b.innerHTML = `${ICONE_WHATSAPP} Conectar WhatsApp`;
+      }
+      $('evoDesconectar').classList.toggle('hidden', !evoConectado());
+    }
+
+    let vigiaWhats = null;
+
+    function fecharWhats() {
+      $('modalWhats').classList.add('hidden');
+      document.body.style.overflow = '';
+      clearTimeout(vigiaWhats);
+    }
+
+    function statusWhats(html) {
+      $('whatsStatus').innerHTML = html;
+    }
+
+    // Mostra o QR e confere a cada 3 s até o celular conectar (QR novo a cada ~40 s).
+    async function acompanharConexao(qrDesde = 0) {
+      clearTimeout(vigiaWhats);
+      if ($('modalWhats').classList.contains('hidden')) return;
+      const estado = await evoAtualizarEstado();
+      if (estado === 'open') {
+        statusWhats('<p class="rounded-xl border border-green-500/40 bg-green-500/10 px-4 py-3 text-green-300 font-semibold">✓ WhatsApp conectado. Os envios agora saem direto do painel.</p>');
+        return;
+      }
+      if (estado === 'erro') {
+        statusWhats('<p class="text-sm text-rose-400">Não consegui falar com o WhatsApp. Confira se a janela do iniciar.bat está aberta e se o endereço e a API key são os que aparecem nela.</p>');
+        return;
+      }
+      if (Date.now() - qrDesde > 40000) {
+        try {
+          const qr = await evoQrCode();
+          qrDesde = Date.now();
+          statusWhats(qr
+            ? `<div class="text-center">
+                 <img src="${qr}" alt="QR code do WhatsApp" class="mx-auto w-60 h-60 rounded-xl bg-white p-2">
+                 <p class="mt-3 text-sm text-slate-300">No celular: WhatsApp › <b>Aparelhos conectados</b> › <b>Conectar um aparelho</b> e leia o código.</p>
+               </div>`
+            : '<p class="text-sm text-slate-400">Aguardando a Evolution gerar o QR code…</p>');
+        } catch (e) {
+          statusWhats(`<p class="text-sm text-rose-400">${escapar(e.message)}</p>`);
+          return;
+        }
+      }
+      vigiaWhats = setTimeout(() => acompanharConexao(qrDesde), 3000);
+    }
+
+    function abrirWhats() {
+      $('evoUrl').value = evo.url;
+      $('evoChave').value = evo.apikey;
+      $('evoInstancia').value = evo.instancia;
+      $('evoLimite').value = evo.limite;
+      statusWhats('');
+      $('modalWhats').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      if (evoConfigurado()) acompanharConexao();
+    }
+
+    $('btnWhats').addEventListener('click', abrirWhats);
+    $('whatsFechar').addEventListener('click', fecharWhats);
+    $('modalWhats').addEventListener('click', ev => { if (ev.target === ev.currentTarget) fecharWhats(); });
+    document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('modalWhats').classList.contains('hidden')) fecharWhats(); });
+
+    $('formWhats').addEventListener('submit', ev => {
+      ev.preventDefault();
+      evo = {
+        url: $('evoUrl').value.trim(),
+        apikey: $('evoChave').value.trim(),
+        instancia: $('evoInstancia').value.trim() || 'mxs',
+        limite: Number($('evoLimite').value) || 10
+      };
+      if (!evo.url || !evo.apikey) {
+        statusWhats('<p class="text-sm text-rose-400">Preencha o endereço e a API key da Evolution.</p>');
+        return;
+      }
+      gravarLocal(CHAVE_EVO, evo);
+      statusWhats('<p class="text-sm text-slate-400">Conectando…</p>');
+      acompanharConexao();
+    });
+
+    $('evoDesconectar').addEventListener('click', async () => {
+      if (!confirm('Desconectar o número do painel? Para voltar, será preciso ler o QR code de novo.')) return;
+      try {
+        await evoChamar('DELETE', `/instance/logout/${evoInst()}`);
+      } catch (e) {
+        avisar(e.message);
+      }
+      await evoAtualizarEstado();
+      statusWhats('<p class="text-sm text-slate-400">Número desconectado.</p>');
+    });
+
+    pintarStatusWhats();
+    evoAtualizarEstado();
+    window.addEventListener('focus', () => { if (evoConfigurado()) evoAtualizarEstado(); });
   </script>
 </body>
 </html>
