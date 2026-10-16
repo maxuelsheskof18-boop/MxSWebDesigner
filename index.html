@@ -212,8 +212,8 @@
       </div>
     </section>
 
-    <p class="mt-6 text-xs text-slate-500 text-center">
-      Simulação: os dados são de exemplo. Na versão real, a busca vai para o Google Places pelo motor no Easypanel.
+    <p id="rodapeModo" class="mt-6 text-xs text-slate-500 text-center">
+      Simulação: os dados são de exemplo. Para a busca real, cole a chave do Google em Conectar WhatsApp.
     </p>
   </div>
 
@@ -243,7 +243,7 @@
       <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-700/70">
         <div>
           <p class="text-xs font-semibold uppercase tracking-wider text-green-300">Envio direto</p>
-          <h3 id="whatsTitulo" class="font-bold text-slate-100">Conectar WhatsApp</h3>
+          <h3 id="whatsTitulo" class="font-bold text-slate-100">WhatsApp e Google Maps</h3>
         </div>
         <button id="whatsFechar" type="button" aria-label="Fechar" class="shrink-0 h-9 w-9 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white transition">✕</button>
       </div>
@@ -278,6 +278,16 @@
         </div>
       </form>
       <div id="whatsStatus" class="px-5 pb-5"></div>
+      <div class="border-t border-slate-700/70 p-5 space-y-3">
+        <p class="text-xs font-semibold uppercase tracking-wider text-cyan-300">Busca real no Google Maps</p>
+        <p class="text-sm text-slate-400">Cole a chave da <b class="text-slate-200">Places API (New)</b>. Ela fica salva só no WhatsApp local deste PC.</p>
+        <div class="flex gap-2">
+          <input id="googleChave" type="password" autocomplete="off" placeholder="AIza…"
+            class="min-w-0 flex-1 rounded-xl bg-slate-950/60 border border-slate-600 px-4 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30">
+          <button id="googleSalvar" type="button" class="shrink-0 rounded-lg px-4 py-2.5 text-sm font-bold text-slate-900 bg-cyan-400 hover:bg-cyan-300 transition">Salvar chave</button>
+        </div>
+        <p id="googleStatus" class="text-xs text-slate-400"></p>
+      </div>
     </div>
   </div>
 
@@ -336,11 +346,23 @@
       ];
     }
 
-    // O filtro crucial: só passa quem tem website nulo, indefinido ou vazio.
+    // Link do Google que é rede social/delivery não é site próprio: também é oportunidade.
+    const REDES = { instagram: 'Instagram', facebook: 'Facebook', 'fb.com': 'Facebook', 'linktr.ee': 'Linktree',
+      'wa.me': 'WhatsApp', whatsapp: 'WhatsApp', ifood: 'iFood', tiktok: 'TikTok', linkedin: 'LinkedIn' };
+    function redeSocialDe(website) {
+      const m = String(website || '').toLowerCase().match(/instagram|facebook|fb\.com|linktr\.ee|wa\.me|whatsapp|ifood|tiktok|linkedin/);
+      return m ? REDES[m[0]] : null;
+    }
+
+    // O filtro crucial: passa quem tem website nulo, indefinido ou vazio — ou só um link de rede social.
     function semSite(empresa) {
       const w = empresa.website;
-      return w === null || w === undefined || String(w).trim() === '';
+      return w === null || w === undefined || String(w).trim() === '' || Boolean(redeSocialDe(w));
     }
+
+    const temNota = l => Number(l.avaliacoes) > 0 && Number(l.avaliacao) > 0;
+    // "R. Tuiuti, 1181 - Tatuapé, São Paulo - SP, 03081-000, Brasil" → "R. Tuiuti, 1181"
+    const enderecoCurto = l => String(l.endereco || '').split(' - ')[0];
 
     // ===================== WHATSAPP =====================
     const NO_CELULAR = matchMedia('(pointer: coarse)').matches;
@@ -498,7 +520,7 @@
           </div>
           <div class="ws-hero">
             <div class="txt">
-              <span class="ws-selo">★ ${lead.avaliacao.toFixed(1)} no Google · ${lead.avaliacoes} avaliações</span>
+              <span class="ws-selo">${temNota(lead) ? `★ ${lead.avaliacao.toFixed(1)} no Google · ${lead.avaliacoes} avaliações` : `📍 Atendimento em ${bairro}`}</span>
               <h2>${t.titulo(bairro)}</h2>
               <p>${t.sub}</p>
               <div class="ws-botoes">
@@ -506,12 +528,12 @@
                 <span class="ws-btn zap">💬 Chamar no WhatsApp</span>
               </div>
             </div>
-            <div class="ws-arte"><img class="emo" src="${emojiComoImagem(t.emoji)}" alt=""><span class="ws-nota"><span>★★★★★</span> ${lead.avaliacao.toFixed(1)} · ${lead.avaliacoes} avaliações</span></div>
+            <div class="ws-arte"><img class="emo" src="${emojiComoImagem(t.emoji)}" alt="">${temNota(lead) ? `<span class="ws-nota"><span>★★★★★</span> ${lead.avaliacao.toFixed(1)} · ${lead.avaliacoes} avaliações</span>` : ''}</div>
           </div>
           <div class="ws-cards">
             ${t.cards.map(([e, b, s]) => `<div class="ws-card"><span class="e">${e}</span><b>${b}</b><small>${s}</small></div>`).join('')}
           </div>
-          <div class="ws-fim"><span>📍 ${escapar(lead.endereco)} · ${bairro}</span><span>📞 ${escapar(lead.telefone)}</span></div>
+          <div class="ws-fim"><span>📍 ${escapar(enderecoCurto(lead))} · ${bairro}</span><span>📞 ${escapar(lead.telefone)}</span></div>
         </div>`;
     }
 
@@ -539,7 +561,7 @@
             <span class="sl-tag">PRÉVIA EXCLUSIVA</span>
             <h1 class="sl-h1" style="${tamTitulo}">Como ficaria o site da<br><span>${nome}</span></h1>
             <p class="sl-lead">Uma demonstração feita especialmente para vocês, a partir do perfil da empresa no Google Maps.</p>
-            <div class="sl-chips"><span>📍 ${bairro}</span><span>★ ${lead.avaliacao.toFixed(1)} · ${lead.avaliacoes} avaliações</span><span>🌐 ${dominio}</span></div>
+            <div class="sl-chips"><span>📍 ${bairro}</span>${temNota(lead) ? `<span>★ ${lead.avaliacao.toFixed(1)} · ${lead.avaliacoes} avaliações</span>` : ''}<span>🌐 ${dominio}</span></div>
           </div>
           ${celular(lead, t, 'right:120px;top:84px;transform:rotate(-4deg)')}
           ${rodapeMxs()}
@@ -564,7 +586,7 @@
         ['💬', 'Botão de WhatsApp', 'Um toque e o cliente já está conversando com vocês.'],
         ['📱', 'Perfeito no celular', 'Rápido e bonito em qualquer tela.'],
         ['📍', 'Mapa e endereço', 'Fica fácil chegar até vocês.'],
-        ['⭐', 'Avaliações em destaque', `As ${lead.avaliacoes} avaliações do Google viram prova de confiança.`],
+        ['⭐', 'Avaliações em destaque', temNota(lead) ? `As ${lead.avaliacoes} avaliações do Google viram prova de confiança.` : 'Depoimentos de clientes que passam confiança.'],
         ['🌐', 'Domínio próprio', `Um endereço profissional, como ${dominio}.`]
       ];
       const inclui = `
@@ -673,7 +695,7 @@
       const dados = await resp.json().catch(() => ({}));
       if (!resp.ok) {
         const msg = dados?.response?.message || dados?.message || `HTTP ${resp.status}`;
-        const erro = new Error(`Evolution: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
+        const erro = new Error(`${caminho.startsWith('/mxs/') ? '' : 'WhatsApp: '}${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
         erro.status = resp.status;
         throw erro;
       }
@@ -807,9 +829,12 @@
           <td class="col-span-2 md:px-5 md:py-4">
             <div class="font-semibold text-slate-100">${escapar(e.nome)}</div>
             <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/20">Sem site</span>
-              <span>★ ${e.avaliacao.toFixed(1)} (${e.avaliacoes})</span>
-              <span class="hidden sm:inline">· ${escapar(e.endereco)}</span>
+              ${e.rede
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">Só ${e.rede}</span>`
+                : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/20">Sem site</span>'}
+              <span>${temNota(e) ? `★ ${e.avaliacao.toFixed(1)} (${e.avaliacoes})` : 'sem avaliações'}</span>
+              <span class="hidden sm:inline">· ${escapar(enderecoCurto(e))}</span>
+              ${e.mapsUrl ? `<a href="${escapar(e.mapsUrl)}" target="_blank" rel="noopener" class="text-cyan-400 hover:underline">ver no Maps</a>` : ''}
             </div>
           </td>
           <td class="md:px-5 md:py-4 text-slate-300 whitespace-nowrap">${escapar(e.regiao)}</td>
@@ -846,17 +871,37 @@
       erro.classList.add('hidden');
       carregando(true);
       try {
-        const todas = await simularBuscaGooglePlaces(nicho, regiao);
-        leadsAtuais = todas.filter(semSite).map(e => ({ ...e, nicho }));
+        const { todas, real } = await buscarEmpresas(nicho, regiao);
+        const semSiteLista = todas.filter(semSite);
+        const semTelefone = semSiteLista.filter(e => !soDigitos(e.telefone)).length;
+        leadsAtuais = semSiteLista
+          .filter(e => soDigitos(e.telefone))
+          .map(e => ({ ...e, nicho, rede: e.website ? redeSocialDe(e.website) : null }));
         $('kpiTotal').textContent = todas.length;
-        $('kpiComSite').textContent = todas.length - leadsAtuais.length;
+        $('kpiComSite').textContent = todas.length - semSiteLista.length;
         $('kpiOport').textContent = leadsAtuais.length;
         $('resumo').classList.remove('hidden');
-        $('legendaBusca').textContent = `${nicho} · ${regiao}`;
+        $('legendaBusca').textContent = `${real ? 'Google Maps' : 'Simulação'} · ${nicho} · ${regiao}` +
+          (semTelefone ? ` · ${semTelefone} sem telefone ${semTelefone > 1 ? 'ficaram' : 'ficou'} de fora` : '');
         renderizar(leadsAtuais);
+      } catch (e) {
+        erro.textContent = e.message;
+        erro.classList.remove('hidden');
       } finally {
         carregando(false);
       }
+    }
+
+    // Com a chave do Google salva no WhatsApp local, busca de verdade; sem ela, simulação.
+    // Se a busca real falhar, mostra o erro — nunca troca por dados inventados.
+    async function buscarEmpresas(nicho, regiao) {
+      if (googleInfo?.configurada) {
+        const d = await evoChamar('POST', '/mxs/buscar', { nicho, regiao });
+        googleInfo = { configurada: d.configurada, uso: d.uso, limite: d.limite };
+        pintarModoBusca();
+        return { todas: d.lugares || [], real: true };
+      }
+      return { todas: await simularBuscaGooglePlaces(nicho, regiao), real: false };
     }
 
     $('formBusca').addEventListener('submit', buscarOportunidades);
@@ -1001,6 +1046,7 @@
       statusWhats('');
       $('modalWhats').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
+      googleAtualizar();
       if (evoConfigurado()) acompanharConexao();
     }
 
@@ -1022,6 +1068,7 @@
         return;
       }
       gravarLocal(CHAVE_EVO, evo);
+      googleAtualizar();
       statusWhats('<p class="text-sm text-slate-400">Conectando…</p>');
       acompanharConexao();
     });
@@ -1037,8 +1084,53 @@
       statusWhats('<p class="text-sm text-slate-400">Número desconectado.</p>');
     });
 
+    // ----- Busca real no Google (pelo WhatsApp local) -----
+    let googleInfo = null; // { configurada, uso, limite } ou null se o WhatsApp local não respondeu
+
+    function pintarModoBusca() {
+      const real = Boolean(googleInfo?.configurada);
+      $('seloModo').innerHTML = real
+        ? '<span class="h-1.5 w-1.5 rounded-full bg-cyan-300"></span> GOOGLE MAPS'
+        : '<span class="h-1.5 w-1.5 rounded-full bg-amber-300"></span> MODO SIMULAÇÃO';
+      $('seloModo').className = 'hidden lg:inline-flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-full border ' +
+        (real ? 'border-cyan-400/30 text-cyan-300 bg-cyan-400/10' : 'border-amber-400/30 text-amber-300 bg-amber-400/10');
+      $('rodapeModo').textContent = real
+        ? `Dados reais do Google Maps · ${googleInfo.uso}/${googleInfo.limite} consultas usadas este mês (cada busca usa até 3).`
+        : 'Simulação: os dados são de exemplo. Para a busca real, cole a chave do Google em Conectar WhatsApp.';
+      $('googleStatus').textContent = !evoConfigurado()
+        ? 'Primeiro preencha o endereço e a API key acima e clique em Salvar e conectar.'
+        : googleInfo === null ? 'O WhatsApp local não respondeu — abra o iniciar.bat.'
+        : real ? `✓ Chave salva · ${googleInfo.uso}/${googleInfo.limite} consultas usadas este mês.`
+        : 'Nenhuma chave salva ainda.';
+    }
+
+    async function googleAtualizar() {
+      googleInfo = null;
+      if (evoConfigurado()) {
+        try { googleInfo = await evoChamar('GET', '/mxs/google'); } catch { googleInfo = null; }
+      }
+      pintarModoBusca();
+    }
+
+    $('googleSalvar').addEventListener('click', async () => {
+      const chave = $('googleChave').value.trim();
+      if (!evoConfigurado()) { pintarModoBusca(); return; }
+      if (!chave) { $('googleStatus').textContent = 'Cole a chave antes de salvar.'; return; }
+      try {
+        googleInfo = await evoChamar('POST', '/mxs/google', { chave });
+        $('googleChave').value = '';
+        pintarModoBusca();
+        avisar('Chave do Google salva — as próximas buscas são reais');
+      } catch (e) {
+        $('googleStatus').textContent = e.status === 404
+          ? 'Esse endereço não é o WhatsApp local da MXS (feche e abra o iniciar.bat de novo para atualizar).'
+          : e.message;
+      }
+    });
+
     pintarStatusWhats();
     evoAtualizarEstado();
+    googleAtualizar();
     window.addEventListener('focus', () => { if (evoConfigurado()) evoAtualizarEstado(); });
   </script>
 </body>
